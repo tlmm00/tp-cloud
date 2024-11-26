@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
+
 
 int main() {
 
@@ -33,6 +35,20 @@ int main() {
     // connect to server
     connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     printf("Connected to the server.\n");
+
+    // send msg READY
+    bzero(buffer, 1024);
+    strcpy(buffer, "READY");
+    printf("Client: %s\n", buffer);
+    send(sock, buffer, strlen(buffer), 0);
+
+
+    bzero(buffer, 1024);
+    recv(sock, buffer, sizeof(buffer), 0);
+    printf("Server: %s\n", buffer);
+
+    close(sock);
+    printf("Disconnected from the server. \n\n");
 
     return 0;
 }

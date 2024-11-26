@@ -46,8 +46,21 @@ int main() {
         addr_size = sizeof(client_addr);
         clinet_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
         printf("[+] Client connected.\n");
-    }
 
+        // receive msg READY
+        bzero(buffer, 1024);
+        recv(clinet_sock, buffer, sizeof(buffer), 0);
+        printf("Cleint: %s\n", buffer);
+        
+        // server send ACK
+        bzero(buffer, 1024);
+        strcpy(buffer, "READY ACK");
+        printf("Server: %s\n", buffer);
+        send(clinet_sock, buffer, strlen(buffer), 0);
+        
+        close(clinet_sock);
+        printf("[+] Client disconnected. \n\n");
+    }
 
     return 0;
 }
