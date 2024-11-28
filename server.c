@@ -4,8 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-
-int BUFFER_SIZE = 2048;
+int BUFFER_SIZE = 1024;
 char *IP = "127.0.0.1";
 int PORT = 5566;
 FILE *OUT_FILE;
@@ -19,27 +18,20 @@ void sendMsg(int sock, char *buffer, char *msg){
 
 char* recvMsg(int sock, char *buffer){
     bzero(buffer, BUFFER_SIZE);
-    recv(sock, buffer, sizeof(buffer), 0);
+    recv(sock, buffer, BUFFER_SIZE, 0);
     printf("Received: %s\n", buffer);
 
     return buffer;
 }
 
 int writeFile(char* txt){
-
-    printf("hello");
     OUT_FILE = fopen(strcat(IP, "dir"), "w");
-    
-    printf("hello");
     if(OUT_FILE == NULL){
         perror("[-] Failed to open output file");
         return 1;
     }
     
-    printf("hello");
     fprintf(OUT_FILE, "%s", txt);
-
-    printf("hello");
     fclose(OUT_FILE);
     return 0;
 }
@@ -90,24 +82,24 @@ int main() {
         // if msg is READY
         if (strcmp(buffer,"READY")==0){
             
-            // server send ACK
+            // server send READY ACK
             sendMsg(clinet_sock, buffer, "READY ACK");
             sleep(1);
+
             recvMsg(clinet_sock, buffer);
-            
             // write received msg to file
-            writeFile(buffer);      
+            //writeFile(buffer);      
             
             // while not receive BYE
             while(strcmp(buffer, "BYE")!=0){
+                // send ACK
+                sendMsg(clinet_sock, buffer, "ACK");
+                
                 // receive client msg
                 recvMsg(clinet_sock, buffer);
                 
                 // write received msg to file
-                writeFile(buffer);
-                
-                // send ACK
-                sendMsg(clinet_sock, buffer, "ACK");
+                //writeFile(buffer);
             }
         }
 

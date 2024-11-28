@@ -6,11 +6,10 @@
 #include <sys/time.h> // gettimeofday
 #include <dirent.h>
 
-int BUFFER_SIZE = 2048;
+int BUFFER_SIZE = 1024;
 char *IP = "127.0.0.1";
 int PORT = 5566;
 char *DIR_PATH = "./dir";
-
 
 void sendMsg(int sock, char *buffer, char *msg){
     bzero(buffer, BUFFER_SIZE);
@@ -21,18 +20,14 @@ void sendMsg(int sock, char *buffer, char *msg){
 
 char* recvMsg(int sock, char *buffer){
     bzero(buffer, BUFFER_SIZE);
-    recv(sock, buffer, sizeof(buffer), 0);
+    recv(sock, buffer, BUFFER_SIZE, 0);
     printf("Received: %s\n", buffer);
 
     return buffer;
 }
 
-
 int main() {
-
-
     int sock;
-
     struct sockaddr_in addr;
     socklen_t addr_size;
 
@@ -71,13 +66,15 @@ int main() {
     // receive READY ACK
     recvMsg(sock, buffer);
     sleep(1);
-    if(strcmp(buffer, "READY AC")==0){
+    if(strcmp(buffer, "READY ACK")==0){
         // start sending file names
         DIR *dr = opendir(DIR_PATH);
         struct dirent *en;
 
         while((en = readdir(dr)) != NULL){
             char *file_name = en->d_name;
+
+
             if(strcmp(file_name, ".")!=0 && strcmp(file_name, "..")!=0){
 
                 while(strcmp(buffer, "ACK")!=0){
@@ -86,6 +83,9 @@ int main() {
                     recvMsg(sock, buffer);
                 }
             }
+
+            // clean buffer before next message
+            bzero(buffer, BUFFER_SIZE);
         }
         closedir(dr);
     }
