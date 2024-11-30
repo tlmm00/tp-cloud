@@ -31,7 +31,7 @@ int writeFile(char* txt){
         return 1;
     }
     
-    fprintf(OUT_FILE, "%s", txt);
+    fprintf(OUT_FILE, "%s\n", txt);
     fclose(OUT_FILE);
     return 0;
 }
@@ -45,6 +45,8 @@ int main() {
 
     char buffer[BUFFER_SIZE];
     int n;
+
+
 
     // creating server socket
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -81,13 +83,22 @@ int main() {
 
         // if msg is READY
         if (strcmp(buffer,"READY")==0){
+
+            // TODO: correct filename construction 
+            OUT_FILE = fopen("127.0.0.1:DIR", "w");
+            if(OUT_FILE == NULL){
+                perror("[-] Failed to open output file");
+                return 1;
+            }
             
             // server send READY ACK
             sendMsg(clinet_sock, buffer, "READY ACK");
             sleep(1);
 
             recvMsg(clinet_sock, buffer);
+
             // write received msg to file
+            fprintf(OUT_FILE, "%s\n", buffer);
             //writeFile(buffer);      
             
             // while not receive BYE
@@ -99,8 +110,10 @@ int main() {
                 recvMsg(clinet_sock, buffer);
                 
                 // write received msg to file
+                fprintf(OUT_FILE, "%s\n", buffer);
                 //writeFile(buffer);
             }
+            fclose(OUT_FILE);
         }
 
         // if msg is BYE
