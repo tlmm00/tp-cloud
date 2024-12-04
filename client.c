@@ -5,15 +5,41 @@
 #include <arpa/inet.h>
 #include <sys/time.h> // gettimeofday
 #include <dirent.h>
+#include <stdbool.h>
+
+#define MAX_STR_LEN 200
 
 int BUFFER_SIZE = 1024;
 char *IP = "127.0.0.1";
 int PORT = 5566;
 char *DIR_PATH = "./dir";
 
-void sendMsg(int sock, char *buffer, char *msg){
+char* charStuffing(char* input){
+
+    char* result = (char*)malloc(MAX_STR_LEN);
+    if (result == NULL) {
+        fprintf(stderr, "[-] Memory allocation failed.\n");
+        exit(1);
+    }
+
+    // Check if the string is "BYE" or starts with "--"
+    if (strcmp(input, "BYE") == 0 || strncmp(input, "--", 2) == 0) {
+        snprintf(result, MAX_STR_LEN, "--%s", input);
+    } else {
+        snprintf(result, MAX_STR_LEN, "%s", input); // Return the original string
+    }
+
+    return result;
+}
+
+void sendMsg(int sock, char *buffer, char *msg, bool stuf){
     bzero(buffer, BUFFER_SIZE);
-    strcpy(buffer, msg);
+
+    if (stuf)
+        strcpy(buffer, charStuffing(msg));
+    else
+        strcpy(buffer, msg);
+
     printf("Sending: %s\n", buffer);
     send(sock, buffer, strlen(buffer), 0);
 }
@@ -30,7 +56,7 @@ int main() {
     int sock;
     struct sockaddr_in addr;
     socklen_t addr_size;
-
+    
     char buffer[BUFFER_SIZE];
     int n;
 
@@ -52,7 +78,7 @@ int main() {
     printf("Connected to the server.\n");
 
     // send msg READY
-    sendMsg(sock, buffer, "READY");
+    sendMsg(sock, buffer, "READY", true);
 
     // TODO: gettimeofday()
     struct timeval start, end;
@@ -74,11 +100,12 @@ int main() {
         while((en = readdir(dr)) != NULL){
             char *file_name = en->d_name;
 
-
+            // if file name is not "." or ".."
             if(strcmp(file_name, ".")!=0 && strcmp(file_name, "..")!=0){
+                
 
                 while(strcmp(buffer, "ACK")!=0){
-                    sendMsg(sock, buffer, file_name);
+                    sendMsg(sock, buffer, file_name, true);
                     sleep(1);
                     recvMsg(sock, buffer);
                 }
@@ -91,7 +118,7 @@ int main() {
     }
 
     // send msg BYE
-    sendMsg(sock, buffer, "BYE");
+    sendMsg(sock, buffer, "BYE", false);
     
     // Record the end time
     if (gettimeofday(&end, NULL) != 0) {

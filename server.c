@@ -4,10 +4,39 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#define MAX_STR_LEN 200
+
 int BUFFER_SIZE = 1024;
 char *IP = "127.0.0.1";
 int PORT = 5566;
 FILE *OUT_FILE;
+
+char* charDestuffing(char* input){
+    const char* prefix = "--";
+    size_t prefix_len = strlen(prefix);
+
+    // Check if the string starts with `--`
+    if (strncmp(input, prefix, prefix_len) == 0) {
+        // Allocate memory for the result string
+        char* result = (char*)malloc(strlen(input) - prefix_len + 1);
+        if (result == NULL) {
+            fprintf(stderr, "Memory allocation failed.\n");
+            exit(1);
+        }
+        // Copy the string without the leading `--`
+        strcpy(result, input + prefix_len);
+        return result;
+    } else {
+        // Allocate memory and return a copy of the original string
+        char* result = (char*)malloc(strlen(input) + 1);
+        if (result == NULL) {
+            fprintf(stderr, "Memory allocation failed.\n");
+            exit(1);
+        }
+        strcpy(result, input);
+        return result;
+    }
+}
 
 void sendMsg(int sock, char *buffer, char *msg){
     bzero(buffer, BUFFER_SIZE);
@@ -16,24 +45,13 @@ void sendMsg(int sock, char *buffer, char *msg){
     send(sock, buffer, strlen(buffer), 0);
 }
 
+
 char* recvMsg(int sock, char *buffer){
     bzero(buffer, BUFFER_SIZE);
     recv(sock, buffer, BUFFER_SIZE, 0);
     printf("Received: %s\n", buffer);
 
     return buffer;
-}
-
-int writeFile(char* txt){
-    OUT_FILE = fopen(strcat(IP, "dir"), "w");
-    if(OUT_FILE == NULL){
-        perror("[-] Failed to open output file");
-        return 1;
-    }
-    
-    fprintf(OUT_FILE, "%s\n", txt);
-    fclose(OUT_FILE);
-    return 0;
 }
 
 int main() {
@@ -97,22 +115,19 @@ int main() {
 
             recvMsg(clinet_sock, buffer);
 
-            // write received msg to file
-            fprintf(OUT_FILE, "%s\n", buffer);
-            //writeFile(buffer);      
             
             // while not receive BYE
             while(strcmp(buffer, "BYE")!=0){
+                // write received msg to file
+                fprintf(OUT_FILE, "%s\n", charDestuffing(buffer));
+
                 // send ACK
                 sendMsg(clinet_sock, buffer, "ACK");
                 
                 // receive client msg
                 recvMsg(clinet_sock, buffer);
-                
-                // write received msg to file
-                fprintf(OUT_FILE, "%s\n", buffer);
-                //writeFile(buffer);
             }
+
             fclose(OUT_FILE);
         }
 
