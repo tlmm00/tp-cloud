@@ -11,8 +11,10 @@
 
 int BUFFER_SIZE = 1024;
 char *IP = "127.0.0.1";
+char *IP6 = "::1";
 int PORT = 5566;
 char *DIR_PATH = "./dir";
+int TOTAL_DATA_SEND = 0;
 
 char* charStuffing(char* input){
 
@@ -41,6 +43,7 @@ void sendMsg(int sock, char *buffer, char *msg, bool stuf){
         strcpy(buffer, msg);
 
     printf("Sending: %s\n", buffer);
+    TOTAL_DATA_SEND += strlen(buffer);
     send(sock, buffer, strlen(buffer), 0);
 }
 
@@ -52,30 +55,60 @@ char* recvMsg(int sock, char *buffer){
     return buffer;
 }
 
-int main() {
-    int sock;
-    struct sockaddr_in addr;
-    socklen_t addr_size;
-    
-    char buffer[BUFFER_SIZE];
-    int n;
+void configSockIPv4(int *sock, struct sockaddr_in *addr) {
 
     // creating socket
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    *sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0){
         perror("[-] Socket error");
         exit(1);
     }
-    printf("[+] TCP server socket created.\n");
+    printf("[+] IPv4 TCP server socket created.\n");
 
-    memset(&addr, '\0', sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port = PORT;
-    addr.sin_addr.s_addr = inet_addr(IP);
+    memset(addr, '\0', sizeof(&addr));
+    addr->sin_family = AF_INET;
+    addr->sin_port = PORT;
+    addr->sin_addr.s_addr = inet_addr(IP);
+}
+
+void configSockIPv6(int *sock, struct sockaddr_in6 *addr) {
+
+    // Creating socket
+    *sock = socket(AF_INET6, SOCK_STREAM, 0);
+    if (*sock < 0) {
+        perror("[-] Socket error");
+        exit(1);
+    }
+    printf("[+] IPv6 TCP server socket created.\n");
+
+    // Initialize the address structure
+    memset(addr, 0, sizeof(struct sockaddr_in6));
+    addr->sin6_family = AF_INET6;
+    addr->sin6_port = htons(PORT); // Convert port to network byte order
+
+    // Set IPv6 address
+    //if (inet_pton(AF_INET6, IP6, &addr->sin6_addr) <= 0) {
+    //    perror("[-] Invalid IPv6 address");
+    //    close(*sock);
+    //    exit(1);
+    //}
+}
+
+int main() {
+    int sock;
+    struct sockaddr_in addr;
+    struct sockaddr_in6 addr6;
+    socklen_t addr_size;
+    
+    char buffer[BUFFER_SIZE];
+
+    configSockIPv4(&sock, &addr);
+    //configSockIPv6(&sock, &addr6);
+
 
     // connect to server
     connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-    printf("Connected to the server.\n");
+    printf("[+] Connected to the server.\n");
 
     // send msg READY
     sendMsg(sock, buffer, "READY", true);
@@ -85,13 +118,12 @@ int main() {
 
     // Record the start time
     if (gettimeofday(&start, NULL) != 0) {
-        perror("Failed to get start time");
+        perror("[-] Failed to get start time");
         return 1;
     }
-
     // receive READY ACK
     recvMsg(sock, buffer);
-    sleep(1);
+    //sleep(1);
     if(strcmp(buffer, "READY ACK")==0){
         // start sending file names
         DIR *dr = opendir(DIR_PATH);
@@ -106,7 +138,7 @@ int main() {
 
                 while(strcmp(buffer, "ACK")!=0){
                     sendMsg(sock, buffer, file_name, true);
-                    sleep(1);
+                    //sleep(1);
                     recvMsg(sock, buffer);
                 }
             }
@@ -122,16 +154,21 @@ int main() {
     
     // Record the end time
     if (gettimeofday(&end, NULL) != 0) {
-        perror("Failed to get end time");
+        perror("[-] Failed to get end time");
         return 1;
     }
 
     // Calculate the elapsed time
-    long seconds = end.tv_sec - start.tv_sec; // Difference in seconds
-    long microseconds = end.tv_usec - start.tv_usec; // Difference in microseconds
+    double seconds = end.tv_sec - start.tv_sec; // Difference in seconds
+    double microseconds = end.tv_usec - start.tv_usec; // Difference in microseconds
 
-    printf("\nTotal time of operation: %ld,%lds\n", seconds, microseconds);
+    double totalTime = seconds + microseconds*1e-6;
 
+    printf("\nTotal time of operation: %.6fs\n", totalTime);
+
+    // 8 bit for each char send
+    double thoughput = TOTAL_DATA_SEND * 8 / totalTime;
+    printf("Thoughput: %.6f bps\n", thoughput);
     close(sock);
     printf("Disconnected from the server. \n\n");
 

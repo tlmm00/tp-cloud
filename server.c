@@ -1,3 +1,4 @@
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 
 int BUFFER_SIZE = 1024;
 char *IP = "127.0.0.1";
+char *IP6 = "::1";
 int PORT = 5566;
 FILE *OUT_FILE;
 
@@ -20,7 +22,7 @@ char* charDestuffing(char* input){
         // Allocate memory for the result string
         char* result = (char*)malloc(strlen(input) - prefix_len + 1);
         if (result == NULL) {
-            fprintf(stderr, "Memory allocation failed.\n");
+            fprintf(stderr, "[-] Memory allocation failed.\n");
             exit(1);
         }
         // Copy the string without the leading `--`
@@ -30,7 +32,7 @@ char* charDestuffing(char* input){
         // Allocate memory and return a copy of the original string
         char* result = (char*)malloc(strlen(input) + 1);
         if (result == NULL) {
-            fprintf(stderr, "Memory allocation failed.\n");
+            fprintf(stderr, "[-] Memory allocation failed.\n");
             exit(1);
         }
         strcpy(result, input);
@@ -54,46 +56,78 @@ char* recvMsg(int sock, char *buffer){
     return buffer;
 }
 
+void configSockIPv4(int *sock, struct sockaddr_in *addr) {
+
+    // creating socket
+    *sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0){
+        perror("[-] Socket error");
+        exit(1);
+    }
+    printf("[+] IPv4 TCP server socket created.\n");
+
+    memset(addr, '\0', sizeof(&addr));
+    addr->sin_family = AF_INET;
+    addr->sin_port = PORT;
+    addr->sin_addr.s_addr = inet_addr(IP);
+
+    // Bind the socket to the address and port
+    if (bind(*sock, (struct sockaddr *)addr, sizeof(struct sockaddr_in)) < 0) {
+        perror("[-] Bind error");
+        close(*sock);
+        exit(1);
+    }
+    printf("[+] Bind to the port number: %d\n", PORT);
+}
+
+void configSockIPv6(int *sock, struct sockaddr_in6 *addr) {
+
+    // Creating socket
+    *sock = socket(AF_INET6, SOCK_STREAM, 0);
+    if (*sock < 0) {
+        perror("[-] Socket error");
+        exit(1);
+    }
+    printf("[+] IPv6 TCP server socket created.\n");
+
+    // Initialize the address structure
+    memset(addr, 0, sizeof(struct sockaddr_in6));
+    addr->sin6_family = AF_INET6;
+    addr->sin6_port = htons(PORT); // Convert port to network byte order
+
+    // Set IPv6 address
+    addr->sin6_addr = in6addr_any; // Bind to any IPv6 address
+
+    // Bind the socket to the address and port
+    if (bind(*sock, (struct sockaddr *)addr, sizeof(struct sockaddr_in6)) < 0) {
+        perror("[-] Bind error");
+        close(*sock);
+        exit(1);
+    }
+    printf("[+] Bind to the port number: %d\n", PORT);
+}
+
 int main() {
     int server_sock, clinet_sock;
     int bytes_received;
 
     struct sockaddr_in server_addr, client_addr;
+    struct sockaddr_in6 server_addr6, client_addr6;
+
     socklen_t addr_size;
 
     char buffer[BUFFER_SIZE];
-    int n;
 
-
-
-    // creating server socket
-    server_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sock < 0){
-        perror("[-] Socket error");
-        exit(1);
-    }
-    printf("[+] TCP server socket created.\n");
-
-    memset(&server_addr, '\0', sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = PORT;
-    server_addr.sin_addr.s_addr = inet_addr(IP);
-
-    // bind the address and port number
-    n = bind(server_sock, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    if (n<0){
-        perror("[-] Bind error");
-        exit(1);
-    }
-    printf("[+] Bind to the port number: %d\n", PORT);
+    configSockIPv4(&server_sock,&server_addr);
+    //configSockIPv6(&server_sock,&server_addr6);
 
     // listen to the client
     listen(server_sock, 5);
     printf("Listening...\n");
 
     while(1){
-        addr_size = sizeof(client_addr);
-        clinet_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
+        addr_size = sizeof(client_addr6);
+        clinet_sock = accept(server_sock, (struct sockaddr*)&client_addr6, &addr_size);
         printf("[+] Client connected.\n");
 
         // receive msg from client
@@ -103,7 +137,7 @@ int main() {
         if (strcmp(buffer,"READY")==0){
 
             // TODO: correct filename construction 
-            OUT_FILE = fopen("127.0.0.1:DIR", "w");
+            OUT_FILE = fopen("127.0.0.1:dir", "w");
             if(OUT_FILE == NULL){
                 perror("[-] Failed to open output file");
                 return 1;
@@ -111,7 +145,7 @@ int main() {
             
             // server send READY ACK
             sendMsg(clinet_sock, buffer, "READY ACK");
-            sleep(1);
+            //sleep(1);
 
             recvMsg(clinet_sock, buffer);
 
