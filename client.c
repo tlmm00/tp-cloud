@@ -87,14 +87,16 @@ void configSockIPv6(int *sock, struct sockaddr_in6 *addr) {
     addr->sin6_port = htons(PORT); // Convert port to network byte order
 
     // Set IPv6 address
-    //if (inet_pton(AF_INET6, IP6, &addr->sin6_addr) <= 0) {
-    //    perror("[-] Invalid IPv6 address");
-    //    close(*sock);
-    //    exit(1);
-    //}
+    if (inet_pton(AF_INET6, IP6, &addr->sin6_addr) <= 0) {
+        perror("[-] Invalid IPv6 address");
+        close(*sock);
+        exit(1);
+    }
 }
 
 int main() {
+    bool is_ipv6 = true;
+
     int sock;
     struct sockaddr_in addr;
     struct sockaddr_in6 addr6;
@@ -102,12 +104,15 @@ int main() {
     
     char buffer[BUFFER_SIZE];
 
-    configSockIPv4(&sock, &addr);
-    //configSockIPv6(&sock, &addr6);
-
+    if(is_ipv6){
+        configSockIPv6(&sock, &addr6);
+        connect(sock, (struct sockaddr*)&addr6, sizeof(addr6));
+    }else {
+        configSockIPv4(&sock, &addr);
+        connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    }
 
     // connect to server
-    connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     printf("[+] Connected to the server.\n");
 
     // send msg READY

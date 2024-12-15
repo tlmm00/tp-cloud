@@ -1,4 +1,5 @@
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -108,6 +109,8 @@ void configSockIPv6(int *sock, struct sockaddr_in6 *addr) {
 }
 
 int main() {
+    bool is_ipv6 = true;
+    
     int server_sock, clinet_sock;
     int bytes_received;
 
@@ -118,16 +121,25 @@ int main() {
 
     char buffer[BUFFER_SIZE];
 
-    configSockIPv4(&server_sock,&server_addr);
-    //configSockIPv6(&server_sock,&server_addr6);
-
+    if(is_ipv6){
+        configSockIPv6(&server_sock,&server_addr6);
+    }else {
+        configSockIPv4(&server_sock,&server_addr);
+    }
+    
     // listen to the client
     listen(server_sock, 5);
     printf("Listening...\n");
 
     while(1){
-        addr_size = sizeof(client_addr6);
-        clinet_sock = accept(server_sock, (struct sockaddr*)&client_addr6, &addr_size);
+        if(is_ipv6){
+            addr_size = sizeof(client_addr6);
+            clinet_sock = accept(server_sock, (struct sockaddr*)&client_addr6, &addr_size);        
+        }else {
+            addr_size = sizeof(client_addr);
+            clinet_sock = accept(server_sock, (struct sockaddr*)&client_addr, &addr_size);
+        }
+
         printf("[+] Client connected.\n");
 
         // receive msg from client
